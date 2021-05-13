@@ -165,6 +165,8 @@ struct cam_cmd_probe {
 	uint32_t    data_mask;
 	uint16_t    camera_id;
 	uint16_t    reserved;
+	//bug552443 quanzhen.wt, add, 2020.05.12,add camera hardwareinfo
+	char sensor_name[MAX_OIS_NAME_SIZE];
 } __attribute__((packed));
 
 /**

@@ -96,6 +96,9 @@ struct cam_control {
 #define VIDIOC_CAM_CONTROL \
 	_IOWR('V', BASE_VIDIOC_PRIVATE, struct cam_control)
 
+/* Add for AT camera test */
+#define VIDIOC_CAM_FTM_POWNER_UP 0
+#define VIDIOC_CAM_FTM_POWNER_DOWN 1
 /**
  * struct cam_hw_version - Structure for HW version of camera devices
  *

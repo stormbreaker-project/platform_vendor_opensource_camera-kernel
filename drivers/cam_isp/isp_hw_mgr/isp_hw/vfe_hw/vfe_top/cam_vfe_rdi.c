@@ -302,12 +302,17 @@ static int cam_vfe_rdi_resource_start(
 		}
 	}
 
-	if (!rdi_res->rdi_only_ctx)
-		goto end;
+//case 04712337, 2020.08.06, for 64M QCFA pic stuck
+	if (rdi_res->rdi_only_ctx)
+		rdi_irq_mask[0] |=
+			(rsrc_data->reg_data->sof_irq_mask);
 
-	rdi_irq_mask[0] =
-		(rsrc_data->reg_data->reg_update_irq_mask |
-			rsrc_data->reg_data->sof_irq_mask);
+	if (rdi_res->rdi_only_last_res)
+		rdi_irq_mask[0] |=
+			(rsrc_data->reg_data->reg_update_irq_mask);
+
+	if (!rdi_res->rdi_only_last_res && !rdi_res->rdi_only_ctx)
+		goto end;
 
 	CAM_DBG(CAM_ISP, "RDI%d irq_mask 0x%x",
 		rdi_res->res_id - CAM_ISP_HW_VFE_IN_RDI0,

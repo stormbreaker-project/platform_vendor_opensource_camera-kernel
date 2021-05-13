@@ -11,6 +11,10 @@
 #include "cam_trace.h"
 #include "cam_common_util.h"
 #include "cam_packet_util.h"
+//bug552443 quanzhen.wt, add, 2020.05.12,add camera hardwareinfo
+#include <linux/hardware_info.h>
+#include <linux/oem/project_info.h>
+extern int hardwareinfo_set_prop(int cmd, const char *name);
 
 
 static void cam_sensor_update_req_mgr(
@@ -131,7 +135,7 @@ static int32_t cam_sensor_i2c_pkt_parse(struct cam_sensor_ctrl_t *s_ctrl,
 	csl_packet = (struct cam_packet *)(generic_ptr +
 		(uint32_t)config.offset);
 
-	if ((csl_packet == NULL) || cam_packet_util_validate_packet(csl_packet,
+	if (cam_packet_util_validate_packet(csl_packet,
 		remain_len)) {
 		CAM_ERR(CAM_SENSOR, "Invalid packet params");
 		rc = -EINVAL;
@@ -449,6 +453,10 @@ int32_t cam_sensor_update_slave_info(struct cam_cmd_probe *probe_info,
 	s_ctrl->pipeline_delay =
 		probe_info->reserved;
 
+	//bug552443 quanzhen.wt, add, 2020.05.12,add camera hardwareinfo
+	strcpy(s_ctrl->sensordata->slave_info.sensor_name,probe_info->sensor_name);
+	s_ctrl->sensordata->slave_info.addr_type = probe_info->addr_type;
+	s_ctrl->sensordata->slave_info.data_type = probe_info->data_type;
 	s_ctrl->sensor_probe_addr_type =  probe_info->addr_type;
 	s_ctrl->sensor_probe_data_type =  probe_info->data_type;
 	CAM_DBG(CAM_SENSOR,
@@ -692,12 +700,12 @@ int cam_sensor_match_id(struct cam_sensor_ctrl_t *s_ctrl)
 		return -EINVAL;
 	}
 
+
 	rc = camera_io_dev_read(
 		&(s_ctrl->io_master_info),
 		slave_info->sensor_id_reg_addr,
-		&chipid,
-		s_ctrl->sensor_probe_addr_type,
-		s_ctrl->sensor_probe_data_type);
+		&chipid, slave_info->addr_type,
+		CAMERA_SENSOR_I2C_TYPE_WORD);
 
 	CAM_DBG(CAM_SENSOR, "read id: 0x%x expected id 0x%x:",
 		chipid, slave_info->sensor_id);
@@ -791,6 +799,23 @@ int32_t cam_sensor_driver_cmd(struct cam_sensor_ctrl_t *s_ctrl,
 			msleep(20);
 			goto free_power_settings;
 		}
+		//bug552443 quanzhen.wt, add, 2020.05.12,add camera hardwareinfo
+		if(!strcmp(s_ctrl->sensordata->slave_info.sensor_name,"n2_ov64b40_main")) {//main
+			hardwareinfo_set_prop(HARDWARE_BACK_CAM, "OV64B_Sunny");
+			hardwareinfo_set_prop(HARDWARE_BACK_CAM_MOUDULE_ID, "Sunny");
+		}else if(!strcmp(s_ctrl->sensordata->slave_info.sensor_name,"n2_imx471_front")){//sub
+			hardwareinfo_set_prop(HARDWARE_FRONT_CAM, "IMX471_Xinli");
+			hardwareinfo_set_prop(HARDWARE_FRONT_CAM_MOUDULE_ID, "Xinli");
+		}else if(!strcmp(s_ctrl->sensordata->slave_info.sensor_name,"n2_hi846_aux")){//wide
+			hardwareinfo_set_prop(HARDWARE_BACK_WIDE_CAM, "HI846_Sunny");
+			hardwareinfo_set_prop(HARDWARE_BACK_WIDE_CAM_MOUDULE_ID, "Sunny");
+		}else if(!strcmp(s_ctrl->sensordata->slave_info.sensor_name,"n2_gc02m1b_aux")){//depth
+			hardwareinfo_set_prop(HARDWARE_BACK_SUBCAM, "GC02M1B_Chengxiangtong");
+			hardwareinfo_set_prop(HARDWARE_BACK_SUBCAM_MODULEID, "Chengxiangtong");
+		}else if(!strcmp(s_ctrl->sensordata->slave_info.sensor_name,"n2_ov02b10_aux")){//macro
+			hardwareinfo_set_prop(HARDWARE_BACK_MACRO_CAM, "OV02B10_Chengxiangtong");
+			hardwareinfo_set_prop(HARDWARE_BACK_MACRO_CAM_MOUDULE_ID, "Chengxiangtong");
+		}
 
 		CAM_INFO(CAM_SENSOR,
 			"Probe success,slot:%d,slave_addr:0x%x,sensor_id:0x%x",
@@ -809,6 +834,19 @@ int32_t cam_sensor_driver_cmd(struct cam_sensor_ctrl_t *s_ctrl,
 		 */
 		s_ctrl->is_probe_succeed = 1;
 		s_ctrl->sensor_state = CAM_SENSOR_INIT;
+
+		if(!strcmp(s_ctrl->sensordata->slave_info.sensor_name,"n2_ov64b40_main")) {//main
+			push_component_info(R_CAMERA, "n2_ov64b40_main","Sunny");
+		}else if(!strcmp(s_ctrl->sensordata->slave_info.sensor_name,"n2_imx471_front")){//sub
+			push_component_info(F_CAMERA, "n2_imx471_front","Xinli");
+		}else if(!strcmp(s_ctrl->sensordata->slave_info.sensor_name,"n2_hi846_aux")){//wide
+			push_component_info(SECOND_R_CAMERA, "n2_hi846_aux","Sunny");
+		}else if(!strcmp(s_ctrl->sensordata->slave_info.sensor_name,"n2_gc02m1b_aux")){//depth
+			push_component_info(THIRD_R_CAMERA, "n2_gc02m1b_aux","Chengxiangtong");;
+		}else if(!strcmp(s_ctrl->sensordata->slave_info.sensor_name,"n2_ov02b10_aux")){//macro
+			push_component_info(FORTH_R_CAMERA, "n2_ov02b10_aux","Chengxiangtong");
+		}
+
 	}
 		break;
 	case CAM_ACQUIRE_DEV: {
